@@ -104,7 +104,7 @@ export const LEVEL_2 = {
   ],
   consoles: [
     { x: 620, y: 120, cameraIndex: 0, label: 'CAMERA CONSOLE' },
-    { x: 1070, y: 120, cameraIndex: 1, label: 'CAMERA CONSOLE' },
+    { x: 1150, y: 250, cameraIndex: 1, label: 'CAMERA CONSOLE' },
   ],
   // A timed laser wall down the middle of the room: cross when it blinks off,
   // or crawl the vent along the top wall instead.
@@ -164,7 +164,7 @@ export const LEVEL_3 = {
   ],
   consoles: [
     { x: 280, y: 120, cameraIndex: 0, label: 'CAMERA CONSOLE' },
-    { x: 620, y: 120, cameraIndex: 1, label: 'CAMERA CONSOLE' },
+    { x: 560, y: 90, cameraIndex: 1, label: 'CAMERA CONSOLE' },
     { x: 980, y: 120, cameraIndex: 2, label: 'CAMERA CONSOLE' },
   ],
   lasers: [],

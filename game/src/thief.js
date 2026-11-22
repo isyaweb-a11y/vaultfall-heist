@@ -2,7 +2,7 @@
 // lockpick — plus the holds that lift loot, crack the vault, hack a console
 // and pick a keycard off a guard's belt.
 import { ALARM, GUARD, THIEF, TOOLS } from './config.js';
-import { distance, makeNoise, resolveCircle } from './world.js';
+import { angleDelta, distance, makeNoise, resolveCircle } from './world.js';
 
 export function makeThief(entrance) {
   return {
@@ -76,25 +76,30 @@ export function rechargeEmp(thief, dt) {
 }
 
 /**
- * What the thief can hold F on right now, nearest first:
- * loot, a cash cart, a locked door, a camera console, a keycard guard's belt.
+ * What the thief can hold F on right now: loot, a cash cart, a locked door,
+ * a camera console, a keycard guard's belt. When several are in reach, the
+ * nearest one wins, so a console never hijacks a pickpocket mid-lift.
  * Returns { kind, label, seconds, target } or null.
  */
 export function findHoldTarget(thief, level, guards) {
   const reach = 52;
+  const candidates = [];
+  const add = (dist, limit, hold) => {
+    if (dist <= limit) candidates.push({ dist, hold });
+  };
   // The big loot: lift the case, crack the vault.
-  if (!thief.lootTaken && distance(thief, level.loot) <= reach + level.loot.r) {
-    return {
+  if (!thief.lootTaken) {
+    add(distance(thief, level.loot), reach + level.loot.r, {
       kind: level.loot.kind === 'vault' ? 'vault' : 'loot',
       label: level.loot.kind === 'vault' ? 'CRACK THE VAULT' : 'LIFT THE CASE',
       seconds: level.loot.kind === 'vault' ? TOOLS.vaultCrackSeconds : TOOLS.lootLiftSeconds,
       target: level.loot,
-    };
+    });
   }
   // Optional cash carts.
   for (const cart of level.extraLoot ?? []) {
-    if (!cart.taken && distance(thief, cart) <= reach + cart.r) {
-      return { kind: 'cart', label: 'EMPTY THE CART', seconds: TOOLS.lootLiftSeconds, target: cart };
+    if (!cart.taken) {
+      add(distance(thief, cart), reach + cart.r, { kind: 'cart', label: 'EMPTY THE CART', seconds: TOOLS.lootLiftSeconds, target: cart });
     }
   }
   // Locked doors: pick the lock, or open with the keycard.
@@ -102,35 +107,32 @@ export function findHoldTarget(thief, level, guards) {
     if (!door.locked) continue;
     const cx = door.x + door.w / 2;
     const cy = door.y + door.h / 2;
-    if (Math.hypot(thief.x - cx, thief.y - cy) <= reach + 30) {
-      if (door.keycard && thief.hasKeycard) {
-        return { kind: 'keydoor', label: 'UNLOCK WITH KEYCARD', seconds: 0.6, target: door };
-      }
-      if (!door.keycard) {
-        return { kind: 'lockpick', label: 'PICK THE LOCK', seconds: TOOLS.lockpickSeconds, target: door };
-      }
+    const dist = Math.hypot(thief.x - cx, thief.y - cy);
+    if (door.keycard && thief.hasKeycard) {
+      add(dist, reach + 30, { kind: 'keydoor', label: 'UNLOCK WITH KEYCARD', seconds: 0.6, target: door });
+    } else if (!door.keycard) {
+      add(dist, reach + 30, { kind: 'lockpick', label: 'PICK THE LOCK', seconds: TOOLS.lockpickSeconds, target: door });
+    } else if (dist <= reach + 30) {
       return { kind: 'locked', label: 'NEEDS A KEYCARD', seconds: 0, target: door };
     }
   }
   // Camera consoles: hold to loop the feed.
   for (const consoleDef of level.consoles ?? []) {
-    if (distance(thief, consoleDef) <= reach) {
-      return { kind: 'console', label: 'HACK THE CONSOLE', seconds: 3.0, target: consoleDef };
-    }
+    add(distance(thief, consoleDef), reach, { kind: 'console', label: 'HACK THE CONSOLE', seconds: 3.0, target: consoleDef });
   }
-  // The keycard, on a guard's belt: brush past from behind.
+  // The keycard, on a guard's belt: brush past from behind — the direction
+  // from the guard to the thief must be nearly opposite the guard's facing.
   const keyGuard = level.keycardGuard >= 0 ? guards[level.keycardGuard] : null;
   if (keyGuard && !thief.hasKeycard) {
-    const behind = Math.abs(
-      ((Math.atan2(thief.y - keyGuard.y, thief.x - keyGuard.x) - keyGuard.angle + Math.PI * 3) %
-        (Math.PI * 2)) -
-        Math.PI,
-    );
-    if (distance(thief, keyGuard) <= GUARD.pickpocketRange && behind < 1.1) {
-      return { kind: 'pickpocket', label: 'LIFT THE KEYCARD', seconds: GUARD.pickpocketSeconds, target: keyGuard };
+    const toThief = Math.atan2(thief.y - keyGuard.y, thief.x - keyGuard.x);
+    const behind = Math.abs(angleDelta(toThief, keyGuard.angle));
+    if (distance(thief, keyGuard) <= GUARD.pickpocketRange && behind > Math.PI - 1.1) {
+      add(distance(thief, keyGuard), GUARD.pickpocketRange, { kind: 'pickpocket', label: 'LIFT THE KEYCARD', seconds: GUARD.pickpocketSeconds, target: keyGuard });
     }
   }
-  return null;
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => a.dist - b.dist);
+  return candidates[0].hold;
 }
 
 /** Advance the current hold; returns 'done' when it completes, else null. */

@@ -71,6 +71,7 @@ let state = buildLevelState(0, seed);
 let best = Number(window.localStorage.getItem('vaultfall-best') ?? 0) || 0;
 let tickTimer = 0;
 let lastTime = 0;
+let holdGraceLeft = 0; // a hold survives a brief loss of its target (tailing a guard)
 
 function setStatus(text) {
   if (statusLine) statusLine.textContent = text;
@@ -297,7 +298,9 @@ function updatePlay(dt) {
     if (hold && hold.kind === 'locked') {
       flash('That door needs a keycard — lift it off a guard\'s belt.', 1.4);
       state.thief.holdTarget = null;
+      holdGraceLeft = 0;
     } else if (hold) {
+      holdGraceLeft = 0.4;
       if (progressHold(state.thief, hold, dt) === 'done') {
         const event = applyHold(state.thief, hold, state.level, state.guards, state.cameras);
         refreshSolids(state);
@@ -320,11 +323,16 @@ function updatePlay(dt) {
           flash('Keycard lifted. The anteroom is yours.', 2);
         }
       }
-    } else {
+    } else if (holdGraceLeft > 0) {
+      // Briefly lost the target (a guard walked on): keep the progress.
+      holdGraceLeft -= dt;
+    } else if (!state.keepHold) {
+      // A staged scene keeps its hold ring up for the screenshot.
       state.thief.holdTarget = null;
     }
-  } else {
+  } else if (!state.keepHold) {
     state.thief.holdTarget = null;
+    holdGraceLeft = 0;
   }
 
   // The alarm: guards first, then cameras, then lasers.

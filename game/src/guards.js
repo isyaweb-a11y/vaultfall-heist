@@ -113,10 +113,12 @@ export function updateGuard(guard, dt, ctx) {
     case GUARD_PATROL: {
       if (guard.pauseLeft > 0) {
         guard.pauseLeft -= dt;
-        // Look around while paused: sweep the head side to side.
-        guard.lookTimer += dt;
-        guard.angle =
-          guard.lookBase + Math.sin(guard.lookTimer * 1.8) * 0.9;
+        // Look around while paused: sweep the head side to side — unless
+        // the guard is posed for a screenshot, when it holds still.
+        if (!guard.posed) {
+          guard.lookTimer += dt;
+          guard.angle = guard.lookBase + Math.sin(guard.lookTimer * 1.8) * 0.9;
+        }
         if (guard.pauseLeft <= 0) {
           guard.waypointIndex = (guard.waypointIndex + 1) % guard.waypoints.length;
         }
@@ -150,8 +152,10 @@ export function updateGuard(guard, dt, ctx) {
       );
       if (arrived) {
         guard.investigateLeft -= dt;
-        guard.lookTimer += dt;
-        guard.angle = guard.lookBase + Math.sin(guard.lookTimer * 2.4) * 1.1;
+        if (!guard.posed) {
+          guard.lookTimer += dt;
+          guard.angle = guard.lookBase + Math.sin(guard.lookTimer * 2.4) * 1.1;
+        }
         if (guard.investigateLeft <= 0) {
           guard.state = GUARD_RETURN;
           guard.lookBase = guard.angle;

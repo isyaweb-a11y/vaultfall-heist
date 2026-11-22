@@ -26,7 +26,7 @@ export const GUARD = {
   spotThreshold: 100,
   coinEarshot: 260,
   coinDistractSeconds: 3.0,
-  pickpocketRange: 46,
+  pickpocketRange: 56,
   pickpocketSeconds: 1.0,
 };
 

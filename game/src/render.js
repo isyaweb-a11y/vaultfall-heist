@@ -470,6 +470,9 @@ function drawHoldRing(ctx, thief) {
   ctx.fillStyle = '#fff3c4';
   ctx.font = 'bold 13px sans-serif';
   ctx.textAlign = 'center';
+  ctx.strokeStyle = '#060a14';
+  ctx.lineWidth = 3;
+  ctx.strokeText(hold.label + '…', ROOM.width / 2, ROOM.height - 62);
   ctx.fillText(hold.label + '…', ROOM.width / 2, ROOM.height - 62);
 }
 
